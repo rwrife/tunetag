@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:TuneTag.App.ViewModels"
+        x:Class="TuneTag.App.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        mc:Ignorable="d"
+        Width="1200"
+        Height="760"
+        MinWidth="900"
+        MinHeight="600"
+        Title="TuneTag">
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="_Open Folder..." Click="OpenFolderClick" />
+        <MenuItem Header="_Save" Click="SaveClick" IsEnabled="{Binding HasDirtyTracks}" />
+        <Separator />
+        <MenuItem Header="E_xit" Click="ExitClick" />
+      </MenuItem>
+    </Menu>
+
+    <Grid RowDefinitions="Auto,*" Margin="12">
+      <Border Grid.Row="0" Padding="10" CornerRadius="6" Background="#182634" BorderBrush="#355069" BorderThickness="1">
+        <StackPanel Spacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="Batch edit selected rows:" VerticalAlignment="Center" />
+            <ComboBox Width="180"
+                      ItemsSource="{Binding BatchEditFields}"
+                      SelectedItem="{Binding SelectedBatchEditField}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding DisplayName}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBox Width="260"
+                     Text="{Binding BatchEditValue}"
+                     Watermark="Value (blank clears the field)" />
+            <Button Content="Apply to Selection" Click="ApplyBatchEditClick" />
+            <Button Content="Save" Click="SaveClick" IsEnabled="{Binding HasDirtyTracks}" />
+          </StackPanel>
+
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding SelectionSummary}" Opacity="0.85" />
+        </StackPanel>
+      </Border>
+
+      <DataGrid x:Name="TracksGrid"
+                Grid.Row="1"
+                Margin="0,12,0,0"
+                ItemsSource="{Binding Tracks}"
+                AutoGenerateColumns="False"
+                IsReadOnly="False"
+                CanUserSortColumns="True"
+                CanUserResizeColumns="True"
+                CanUserReorderColumns="True"
+                SelectionMode="Extended"
+                SelectionChanged="TracksGridSelectionChanged"
+                GridLinesVisibility="Horizontal">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="File" Binding="{Binding FileName}" IsReadOnly="True" Width="2*" />
+          <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*" />
+          <DataGridTextColumn Header="Artist" Binding="{Binding Artist}" Width="2*" />
+          <DataGridTextColumn Header="Album" Binding="{Binding Album}" Width="2*" />
+          <DataGridTextColumn Header="Album Artist" Binding="{Binding AlbumArtist}" Width="2*" />
+          <DataGridTextColumn Header="Track" Binding="{Binding TrackNumber}" Width="90" />
+          <DataGridTextColumn Header="Disc" Binding="{Binding DiscNumber}" Width="80" />
+          <DataGridTextColumn Header="Year" Binding="{Binding Year}" Width="90" />
+          <DataGridTextColumn Header="Genre" Binding="{Binding Genre}" Width="1.5*" />
+          <DataGridTextColumn Header="Composer" Binding="{Binding Composer}" Width="1.5*" />
+          <DataGridTextColumn Header="Comment" Binding="{Binding Comment}" Width="2*" />
+          <DataGridCheckBoxColumn Header="Dirty" Binding="{Binding IsDirty}" IsReadOnly="True" Width="70" />
+        </DataGrid.Columns>
+      </DataGrid>
+    </Grid>
+  </DockPanel>
+</Window>
