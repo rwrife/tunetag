@@ -22,7 +22,7 @@ public partial class App : Application
             var trackLibraryService = new TrackLibraryService(tagService, tagService);
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(trackLibraryService)
+                DataContext = new MainWindowViewModel(trackLibraryService, tagService)
             };
         }
 

@@ -4,8 +4,20 @@ using TuneTag.Core.Models;
 
 namespace TuneTag.Core.Services;
 
-public sealed class TagLibTagService : ITagReader, ITagWriter
+public sealed class TagLibTagService : ITagReader, ITagWriter, IArtService
 {
+    private static readonly string[] DefaultSupportedExtensions =
+    [
+        ".mp3",
+        ".flac",
+        ".ogg",
+        ".m4a",
+        ".mp4",
+        ".m4b",
+        ".aac",
+        ".alac"
+    ];
+
     private readonly FormatRouter _formatRouter;
 
     public TagLibTagService(FormatRouter formatRouter)
@@ -52,6 +64,90 @@ public sealed class TagLibTagService : ITagReader, ITagWriter
         }
 
         return trackTags;
+    }
+
+    public AlbumArt? ReadPrimary(string filePath)
+    {
+        _formatRouter.Resolve(filePath);
+
+        using var tagFile = TagLib.File.Create(filePath);
+        var picture = SelectPrimaryPicture(tagFile.Tag.Pictures);
+        if (picture is null)
+        {
+            return null;
+        }
+
+        var bytes = picture.Data?.Data ?? [];
+        var mimeType = string.IsNullOrWhiteSpace(picture.MimeType)
+            ? "application/octet-stream"
+            : picture.MimeType;
+
+        return new AlbumArt(mimeType, bytes, MapToAlbumArtKind(picture.Type), picture.Description);
+    }
+
+    public void SetPrimary(string filePath, AlbumArt art)
+    {
+        ArgumentNullException.ThrowIfNull(art);
+        _formatRouter.Resolve(filePath);
+
+        using var tagFile = TagLib.File.Create(filePath);
+        tagFile.Tag.Pictures = [CreatePicture(art)];
+        tagFile.Save();
+    }
+
+    public void Remove(string filePath)
+    {
+        _formatRouter.Resolve(filePath);
+
+        using var tagFile = TagLib.File.Create(filePath);
+        tagFile.Tag.Pictures = [];
+        tagFile.Save();
+    }
+
+    public string ExtractPrimary(string filePath, string outputPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputPath);
+
+        var art = ReadPrimary(filePath)
+            ?? throw new InvalidOperationException($"No embedded artwork found in '{filePath}'.");
+
+        var extension = MapMimeTypeToExtension(art.MimeType);
+        var fullOutputPath = Path.ChangeExtension(outputPath, extension.TrimStart('.'));
+        var directoryPath = Path.GetDirectoryName(fullOutputPath);
+        if (!string.IsNullOrWhiteSpace(directoryPath))
+        {
+            Directory.CreateDirectory(directoryPath);
+        }
+
+        System.IO.File.WriteAllBytes(fullOutputPath, art.Bytes);
+        return fullOutputPath;
+    }
+
+    public int ApplyPrimaryToFolder(string folderPath, AlbumArt art, IEnumerable<string>? supportedExtensions = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderPath);
+        ArgumentNullException.ThrowIfNull(art);
+
+        if (!Directory.Exists(folderPath))
+        {
+            throw new DirectoryNotFoundException($"Folder does not exist: {folderPath}");
+        }
+
+        var normalizedExtensions = new HashSet<string>(
+            (supportedExtensions ?? DefaultSupportedExtensions).Select(NormalizeExtension),
+            StringComparer.OrdinalIgnoreCase);
+
+        var filePaths = Directory.EnumerateFiles(folderPath, "*", SearchOption.AllDirectories)
+            .Where(path => normalizedExtensions.Contains(NormalizeExtension(Path.GetExtension(path))));
+
+        var updatedCount = 0;
+        foreach (var filePath in filePaths)
+        {
+            SetPrimary(filePath, art);
+            updatedCount++;
+        }
+
+        return updatedCount;
     }
 
     public void Write(string filePath, TrackTags tags)
@@ -111,6 +207,42 @@ public sealed class TagLibTagService : ITagReader, ITagWriter
         };
 
         return picture;
+    }
+
+    private static IPicture? SelectPrimaryPicture(IPicture[]? pictures)
+    {
+        if (pictures is null || pictures.Length == 0)
+        {
+            return null;
+        }
+
+        return pictures.FirstOrDefault(static picture => picture.Type == PictureType.FrontCover)
+            ?? pictures[0];
+    }
+
+    private static string MapMimeTypeToExtension(string mimeType)
+    {
+        var normalized = mimeType.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "image/jpeg" or "image/jpg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "image/gif" => ".gif",
+            "image/bmp" => ".bmp",
+            _ => ".bin"
+        };
+    }
+
+    private static string NormalizeExtension(string extension)
+    {
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return string.Empty;
+        }
+
+        var normalized = extension.Trim();
+        return normalized.StartsWith('.') ? normalized.ToLowerInvariant() : $".{normalized.ToLowerInvariant()}";
     }
 
     private static AlbumArtKind MapToAlbumArtKind(PictureType type)
