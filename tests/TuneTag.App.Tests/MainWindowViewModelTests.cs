@@ -1,6 +1,7 @@
 using TuneTag.App.Services;
 using TuneTag.App.ViewModels;
 using TuneTag.Core.Models;
+using TuneTag.Core.Services;
 
 namespace TuneTag.App.Tests;
 
@@ -21,7 +22,7 @@ public sealed class MainWindowViewModelTests
             ])
         };
 
-        var vm = new MainWindowViewModel(service);
+        var vm = new MainWindowViewModel(service, new FakeArtService());
 
         await vm.LoadFolderAsync("/music");
 
@@ -45,7 +46,7 @@ public sealed class MainWindowViewModelTests
             [])
         };
 
-        var vm = new MainWindowViewModel(service);
+        var vm = new MainWindowViewModel(service, new FakeArtService());
         await vm.LoadFolderAsync("/music");
 
         vm.SetSelectedTracks(vm.Tracks);
@@ -74,7 +75,7 @@ public sealed class MainWindowViewModelTests
 
         service.SaveHandler = requests => new TrackSaveResult(requests.Select(request => request.FilePath).ToArray(), []);
 
-        var vm = new MainWindowViewModel(service);
+        var vm = new MainWindowViewModel(service, new FakeArtService());
         await vm.LoadFolderAsync("/music");
 
         vm.SetSelectedTracks(vm.Tracks);
@@ -116,6 +117,29 @@ public sealed class MainWindowViewModelTests
             }
 
             return Task.FromResult(new TrackSaveResult([], []));
+        }
+    }
+
+    private sealed class FakeArtService : IArtService
+    {
+        public AlbumArt? ReadPrimary(string filePath) => null;
+
+        public void SetPrimary(string filePath, AlbumArt art)
+        {
+        }
+
+        public void Remove(string filePath)
+        {
+        }
+
+        public string ExtractPrimary(string filePath, string outputPath)
+        {
+            return outputPath;
+        }
+
+        public int ApplyPrimaryToFolder(string folderPath, AlbumArt art, IEnumerable<string>? supportedExtensions = null)
+        {
+            return 0;
         }
     }
 }

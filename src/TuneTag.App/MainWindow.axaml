@@ -8,8 +8,8 @@
         mc:Ignorable="d"
         Width="1200"
         Height="760"
-        MinWidth="900"
-        MinHeight="600"
+        MinWidth="980"
+        MinHeight="640"
         Title="TuneTag">
   <DockPanel>
     <Menu DockPanel.Dock="Top">
@@ -22,30 +22,48 @@
     </Menu>
 
     <Grid RowDefinitions="Auto,*" Margin="12">
-      <Border Grid.Row="0" Padding="10" CornerRadius="6" Background="#182634" BorderBrush="#355069" BorderThickness="1">
-        <StackPanel Spacing="8">
-          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-            <TextBlock Text="Batch edit selected rows:" VerticalAlignment="Center" />
-            <ComboBox Width="180"
-                      ItemsSource="{Binding BatchEditFields}"
-                      SelectedItem="{Binding SelectedBatchEditField}">
-              <ComboBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding DisplayName}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBox Width="260"
-                     Text="{Binding BatchEditValue}"
-                     Watermark="Value (blank clears the field)" />
-            <Button Content="Apply to Selection" Click="ApplyBatchEditClick" />
-            <Button Content="Save" Click="SaveClick" IsEnabled="{Binding HasDirtyTracks}" />
-          </StackPanel>
+      <Grid Grid.Row="0" ColumnDefinitions="2*,1*">
+        <Border Grid.Column="0" Padding="10" CornerRadius="6" Background="#182634" BorderBrush="#355069" BorderThickness="1">
+          <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Text="Batch edit selected rows:" VerticalAlignment="Center" />
+              <ComboBox Width="180"
+                        ItemsSource="{Binding BatchEditFields}"
+                        SelectedItem="{Binding SelectedBatchEditField}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding DisplayName}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBox Width="260"
+                       Text="{Binding BatchEditValue}"
+                       Watermark="Value (blank clears the field)" />
+              <Button Content="Apply to Selection" Click="ApplyBatchEditClick" />
+              <Button Content="Save" Click="SaveClick" IsEnabled="{Binding HasDirtyTracks}" />
+            </StackPanel>
 
-          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding SelectionSummary}" Opacity="0.85" />
-        </StackPanel>
-      </Border>
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding SelectionSummary}" Opacity="0.85" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Margin="12,0,0,0" Padding="10" CornerRadius="6" Background="#14202d" BorderBrush="#355069" BorderThickness="1">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Album Art" FontWeight="SemiBold" />
+            <Border Width="220" Height="220" Background="#0f1720" BorderBrush="#355069" BorderThickness="1" CornerRadius="4" HorizontalAlignment="Left">
+              <Image Source="{Binding CurrentCoverPreview}" Stretch="Uniform" />
+            </Border>
+            <TextBlock Text="{Binding CurrentCoverSummary}" TextWrapping="Wrap" Opacity="0.9" />
+            <WrapPanel Orientation="Horizontal" ItemHeight="30" ItemWidth="150">
+              <Button Content="Set/Replace Cover..." Click="SetCoverClick" IsEnabled="{Binding HasSelectedTracks}" />
+              <Button Content="Extract Cover..." Click="ExtractCoverClick" IsEnabled="{Binding HasSelectedTracks}" />
+              <Button Content="Remove Cover" Click="RemoveCoverClick" IsEnabled="{Binding HasSelectedTracks}" />
+              <Button Content="Apply Cover to Folder..." Click="ApplyCoverToFolderClick" IsEnabled="{Binding HasSelectedTracks}" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
 
       <DataGrid x:Name="TracksGrid"
                 Grid.Row="1"
