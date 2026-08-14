@@ -60,6 +60,36 @@ public partial class MainWindow : Window
         ViewModel?.ApplyBatchEditToSelection();
     }
 
+    private void RefreshRenamePreviewClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel?.RefreshRenamePreview();
+    }
+
+    private async void ApplyRenameClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        await ViewModel.ApplyRenameAsync();
+    }
+
+    private async void UndoRenameClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        await ViewModel.UndoLastRenameAsync();
+    }
+
+    private void SuggestTagsFromFilenameClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel?.SuggestTagsFromFilenames();
+    }
+
     private async void SetCoverClick(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null)

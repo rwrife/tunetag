@@ -94,6 +94,55 @@ public sealed class MainWindowViewModelTests
         Assert.Contains("Saved 1 track", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task RefreshRenamePreview_ShowsLiveOldToNewMappings()
+    {
+        var service = new FakeTrackLibraryService
+        {
+            NextLoadResult = new TrackLoadResult(
+            [
+                new LoadedTrack("/music/one.mp3", new TrackTags { TrackNumber = 1, Title = "Intro" }),
+                new LoadedTrack("/music/two.mp3", new TrackTags { TrackNumber = 2, Title = "Outro" })
+            ],
+            [])
+        };
+
+        var vm = new MainWindowViewModel(service, new FakeArtService());
+        await vm.LoadFolderAsync("/music");
+
+        vm.RenameTemplate = "{track:00} - {title}";
+        var built = vm.RefreshRenamePreview();
+
+        Assert.True(built);
+        Assert.Contains("one.mp3 -> 01 - Intro.mp3", vm.RenamePreviewText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("two.mp3 -> 02 - Outro.mp3", vm.RenamePreviewText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SuggestTagsFromFilenames_ParsesCommonPattern_WithoutSaving()
+    {
+        var service = new FakeTrackLibraryService
+        {
+            NextLoadResult = new TrackLoadResult(
+            [
+                new LoadedTrack("/music/01 - Artist Name - Song Title.mp3", new TrackTags())
+            ],
+            [])
+        };
+
+        var vm = new MainWindowViewModel(service, new FakeArtService());
+        await vm.LoadFolderAsync("/music");
+
+        vm.SetSelectedTracks(vm.Tracks);
+        var updated = vm.SuggestTagsFromFilenames();
+
+        Assert.Equal(1, updated);
+        Assert.Equal((uint)1, vm.Tracks[0].TrackNumber);
+        Assert.Equal("Artist Name", vm.Tracks[0].Artist);
+        Assert.Equal("Song Title", vm.Tracks[0].Title);
+        Assert.Empty(service.CapturedSaveRequests);
+    }
+
     private sealed class FakeTrackLibraryService : ITrackLibraryService
     {
         public TrackLoadResult NextLoadResult { get; set; } = new([], []);

@@ -45,6 +45,24 @@
 
             <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" />
             <TextBlock Text="{Binding SelectionSummary}" Opacity="0.85" />
+
+            <Separator Margin="0,4,0,4" />
+            <TextBlock Text="Rename from tags" FontWeight="SemiBold" />
+            <TextBlock Text="Template tokens: artist, album, albumartist, title, track:00, disc, year, genre" Opacity="0.85" TextWrapping="Wrap" />
+            <TextBox Text="{Binding RenameTemplate}" Watermark="Example: 01 - Song Title" />
+            <WrapPanel Orientation="Horizontal" ItemHeight="30" ItemWidth="200">
+              <Button Content="Refresh Rename Preview" Click="RefreshRenamePreviewClick" />
+              <Button Content="Apply Rename" Click="ApplyRenameClick" IsEnabled="{Binding HasRenamePlan}" />
+              <Button Content="Undo Last Rename" Click="UndoRenameClick" />
+              <Button Content="Suggest Tags from Filenames" Click="SuggestTagsFromFilenameClick" />
+            </WrapPanel>
+            <TextBlock Text="{Binding RenameSummary}" Opacity="0.85" TextWrapping="Wrap" />
+            <TextBox Text="{Binding RenamePreviewText}"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="NoWrap"
+                     MinHeight="120"
+                     FontFamily="Consolas" />
           </StackPanel>
         </Border>
 
