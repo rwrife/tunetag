@@ -12,6 +12,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 {
     private readonly ITrackLibraryService _trackLibraryService;
     private readonly IArtService _artService;
+    private readonly IRenameEngine _renameEngine;
+    private readonly IFilenameParser _filenameParser;
     private readonly HashSet<TrackRowViewModel> _selectedTracks = [];
 
     private BatchEditFieldOption? _selectedBatchEditField;
@@ -22,11 +24,23 @@ public sealed class MainWindowViewModel : ViewModelBase
     private AlbumArt? _currentCover;
     private Bitmap? _currentCoverPreview;
     private string _currentCoverSummary = "Select a track to view album art.";
+    private string _renameTemplate = "{track:00} - {title}";
+    private string _renamePreviewText = "Rename preview appears here.";
+    private string _renameSummary = "No rename preview yet.";
+    private IReadOnlyList<RenamePlanEntry> _renamePlan = [];
+    private string? _lastRenameJournalPath;
+    private string? _currentFolderPath;
 
-    public MainWindowViewModel(ITrackLibraryService trackLibraryService, IArtService artService)
+    public MainWindowViewModel(
+        ITrackLibraryService trackLibraryService,
+        IArtService artService,
+        IRenameEngine? renameEngine = null,
+        IFilenameParser? filenameParser = null)
     {
         _trackLibraryService = trackLibraryService ?? throw new ArgumentNullException(nameof(trackLibraryService));
         _artService = artService ?? throw new ArgumentNullException(nameof(artService));
+        _renameEngine = renameEngine ?? new RenameEngine();
+        _filenameParser = filenameParser ?? new FilenameParser();
 
         Tracks = [];
         BatchEditFields =
@@ -60,6 +74,38 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         get => _batchEditValue;
         set => SetProperty(ref _batchEditValue, value);
+    }
+
+    public string RenameTemplate
+    {
+        get => _renameTemplate;
+        set
+        {
+            if (SetProperty(ref _renameTemplate, value))
+            {
+                RefreshRenamePreview();
+            }
+        }
+    }
+
+    public string RenamePreviewText
+    {
+        get => _renamePreviewText;
+        private set => SetProperty(ref _renamePreviewText, value);
+    }
+
+    public string RenameSummary
+    {
+        get => _renameSummary;
+        private set => SetProperty(ref _renameSummary, value);
+    }
+
+    public bool HasRenamePlan => _renamePlan.Count > 0;
+
+    public string? LastRenameJournalPath
+    {
+        get => _lastRenameJournalPath;
+        private set => SetProperty(ref _lastRenameJournalPath, value);
     }
 
     public string StatusMessage
@@ -123,6 +169,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var result = await _trackLibraryService.LoadTracksAsync(folderPath).ConfigureAwait(true);
 
+            _currentFolderPath = folderPath;
             ReplaceTracks(result.Tracks.Select(track => TrackRowViewModel.FromTrackTags(track.FilePath, track.Tags)));
             SetSelectedTracks([]);
             BatchEditValue = string.Empty;
@@ -137,6 +184,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
 
             RefreshTrackStateIndicators();
+            RefreshRenamePreview();
         }
         finally
         {
@@ -164,6 +212,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             CurrentCoverSummary = "Loading cover from selected track...";
         }
+
+        RefreshRenamePreview();
     }
 
     public bool ApplyBatchEditToSelection()
@@ -196,6 +246,174 @@ public sealed class MainWindowViewModel : ViewModelBase
         StatusMessage = $"Applied {SelectedBatchEditField.DisplayName} to {_selectedTracks.Count} selected track(s).";
         RefreshTrackStateIndicators();
         return true;
+    }
+
+    public bool RefreshRenamePreview()
+    {
+        var tracks = GetTracksForRenameScope();
+        if (tracks.Length == 0)
+        {
+            SetRenamePlan([]);
+            RenameSummary = "No tracks available for rename preview.";
+            RenamePreviewText = "Load a folder first.";
+            return false;
+        }
+
+        try
+        {
+            var preview = _renameEngine.BuildPreview(
+                tracks.Select(track => new RenameTrackInput(track.FilePath, track.ToTrackTags())).ToArray(),
+                RenameTemplate);
+
+            SetRenamePlan(preview.Entries);
+            RenameSummary = $"Preview: {preview.RenameCount} rename(s), {preview.CollisionCount} collision(s) resolved.";
+
+            var lines = preview.Entries
+                .Select(entry =>
+                {
+                    var left = Path.GetFileName(entry.OriginalPath);
+                    var right = Path.GetFileName(entry.TargetPath);
+                    var note = entry.CollisionResolved && !string.IsNullOrWhiteSpace(entry.CollisionNote)
+                        ? $" [{entry.CollisionNote}]"
+                        : string.Empty;
+
+                    return $"{left} -> {right}{note}";
+                })
+                .ToArray();
+
+            RenamePreviewText = lines.Length == 0
+                ? "No tracks available for preview."
+                : string.Join(Environment.NewLine, lines);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            SetRenamePlan([]);
+            RenameSummary = "Rename preview failed.";
+            RenamePreviewText = ex.Message;
+            return false;
+        }
+    }
+
+    public async Task<bool> ApplyRenameAsync()
+    {
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        if (_renamePlan.Count == 0 && !RefreshRenamePreview())
+        {
+            StatusMessage = "Unable to build rename preview.";
+            return false;
+        }
+
+        var preview = new RenamePreviewResult(_renamePlan);
+        if (preview.RenameCount == 0)
+        {
+            StatusMessage = "No file name changes to apply from current template.";
+            return false;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Applying {preview.RenameCount} rename(s)...";
+
+        try
+        {
+            var applyResult = await Task.Run(() => _renameEngine.Apply(preview)).ConfigureAwait(true);
+
+            UpdateTrackPaths(applyResult.AppliedEntries);
+            LastRenameJournalPath = applyResult.UndoJournalPath;
+            StatusMessage = $"Renamed {applyResult.RenamedCount} file(s). Undo journal: {applyResult.UndoJournalPath}";
+
+            RefreshRenamePreview();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Rename apply failed: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task<bool> UndoLastRenameAsync()
+    {
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(LastRenameJournalPath))
+        {
+            StatusMessage = "No undo journal is available yet.";
+            return false;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Undoing last rename operation...";
+
+        try
+        {
+            var undoResult = await Task.Run(() => _renameEngine.Undo(LastRenameJournalPath)).ConfigureAwait(true);
+
+            UpdateTrackPaths(undoResult.RestoredEntries);
+            StatusMessage = $"Undo restored {undoResult.RestoredCount} file(s).";
+            RefreshRenamePreview();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Undo failed: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public int SuggestTagsFromFilenames()
+    {
+        var tracks = GetTracksForRenameScope();
+        if (tracks.Length == 0)
+        {
+            StatusMessage = "No tracks available for filename-based suggestions.";
+            return 0;
+        }
+
+        var updatedTracks = 0;
+        foreach (var track in tracks)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(track.FileName);
+            var suggestion = _filenameParser.Parse(fileName);
+            if (!suggestion.HasSuggestions)
+            {
+                continue;
+            }
+
+            if (ApplyFilenameSuggestion(track, suggestion))
+            {
+                updatedTracks++;
+            }
+        }
+
+        if (updatedTracks == 0)
+        {
+            StatusMessage = "No filename patterns matched selected tracks.";
+        }
+        else
+        {
+            StatusMessage = $"Applied filename tag suggestions to {updatedTracks} track(s). Review before saving.";
+        }
+
+        RefreshTrackStateIndicators();
+        RefreshRenamePreview();
+        return updatedTracks;
     }
 
     public async Task SaveAsync()
@@ -484,6 +702,75 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             IsBusy = false;
         }
+    }
+
+    private TrackRowViewModel[] GetTracksForRenameScope()
+    {
+        return _selectedTracks.Count > 0
+            ? _selectedTracks
+                .OrderBy(track => track.FilePath, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : Tracks
+                .OrderBy(track => track.FilePath, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private void SetRenamePlan(IReadOnlyList<RenamePlanEntry> renamePlan)
+    {
+        _renamePlan = renamePlan;
+        RaisePropertyChanged(nameof(HasRenamePlan));
+    }
+
+    private void UpdateTrackPaths(IReadOnlyList<RenamePlanEntry> plan)
+    {
+        if (plan.Count == 0)
+        {
+            return;
+        }
+
+        var trackByPath = Tracks.ToDictionary(track => track.FilePath, StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in plan)
+        {
+            if (!entry.WillRename)
+            {
+                continue;
+            }
+
+            if (trackByPath.TryGetValue(entry.OriginalPath, out var track))
+            {
+                track.UpdateFilePath(entry.TargetPath);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_currentFolderPath) && Directory.Exists(_currentFolderPath))
+        {
+            _currentFolderPath = Path.GetFullPath(_currentFolderPath);
+        }
+    }
+
+    private static bool ApplyFilenameSuggestion(TrackRowViewModel track, FilenameTagSuggestion suggestion)
+    {
+        var appliedAny = false;
+
+        if (suggestion.SuggestedTags.TrackNumber.HasValue)
+        {
+            track.TrackNumber = suggestion.SuggestedTags.TrackNumber;
+            appliedAny = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(suggestion.SuggestedTags.Artist))
+        {
+            track.Artist = suggestion.SuggestedTags.Artist;
+            appliedAny = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(suggestion.SuggestedTags.Title))
+        {
+            track.Title = suggestion.SuggestedTags.Title;
+            appliedAny = true;
+        }
+
+        return appliedAny;
     }
 
     private TrackRowViewModel? GetPrimarySelectedTrack()

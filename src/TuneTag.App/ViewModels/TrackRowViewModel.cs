@@ -5,7 +5,7 @@ namespace TuneTag.App.ViewModels;
 
 public sealed class TrackRowViewModel : ViewModelBase
 {
-    private readonly string _filePath;
+    private string _filePath;
     private string? _title;
     private string? _artist;
     private string? _album;
@@ -235,6 +235,21 @@ public sealed class TrackRowViewModel : ViewModelBase
     {
         _original = CurrentSnapshot();
         RecalculateDirtyState();
+    }
+
+    public void UpdateFilePath(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var normalizedPath = Path.GetFullPath(filePath);
+        if (string.Equals(_filePath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _filePath = normalizedPath;
+        RaisePropertyChanged(nameof(FilePath));
+        RaisePropertyChanged(nameof(FileName));
     }
 
     private void RecalculateDirtyState()
