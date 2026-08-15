@@ -90,6 +90,31 @@ public partial class MainWindow : Window
         ViewModel?.SuggestTagsFromFilenames();
     }
 
+    private async void ProbeAiClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        await ViewModel.ProbeAiServiceAsync();
+    }
+
+    private async void SuggestAiClick(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        await ViewModel.GenerateAiSuggestionsAsync();
+    }
+
+    private void ApplyAiSuggestionsClick(object? sender, RoutedEventArgs e)
+    {
+        ViewModel?.ApplyAiSuggestions();
+    }
+
     private async void SetCoverClick(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null)

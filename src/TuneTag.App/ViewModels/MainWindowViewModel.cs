@@ -8,7 +8,7 @@ using TuneTag.Core.Services;
 
 namespace TuneTag.App.ViewModels;
 
-public sealed class MainWindowViewModel : ViewModelBase
+public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ITrackLibraryService _trackLibraryService;
     private readonly IArtService _artService;

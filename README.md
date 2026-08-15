@@ -93,6 +93,7 @@ suggestion is a proposal you approve** before it's written.
 - Tiny/small models work well: Llama 3.2, Qwen2.5, Phi-3-mini, MiniCPM class.
 - A reachability probe disables AI features gracefully when no local model is running.
 - Off by default; no network calls in the default configuration.
+- Payload contract: see [`docs/local-ai-payload.md`](docs/local-ai-payload.md).
 
 ## Current status / milestones
 

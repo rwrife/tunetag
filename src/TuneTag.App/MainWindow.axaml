@@ -47,6 +47,45 @@
             <TextBlock Text="{Binding SelectionSummary}" Opacity="0.85" />
 
             <Separator Margin="0,4,0,4" />
+            <TextBlock Text="Local AI metadata assist (optional)" FontWeight="SemiBold" />
+            <CheckBox Content="Enable local AI assist (localhost only)" IsChecked="{Binding AiAssistEnabled}" />
+            <TextBlock Text="{Binding AiAssistStatus}" Opacity="0.85" TextWrapping="Wrap" />
+            <StackPanel Spacing="6" IsVisible="{Binding AiAssistEnabled}">
+              <WrapPanel Orientation="Horizontal" ItemHeight="30" ItemWidth="200">
+                <Button Content="Probe Local Endpoint" Click="ProbeAiClick" />
+                <Button Content="Suggest Missing Tags" Click="SuggestAiClick" IsEnabled="{Binding CanRequestAiSuggestions}" />
+                <Button Content="Apply AI Suggestions" Click="ApplyAiSuggestionsClick" IsEnabled="{Binding HasPendingAiSuggestions}" />
+              </WrapPanel>
+
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Endpoint" VerticalAlignment="Center" />
+                <TextBox Width="280" Text="{Binding AiEndpoint}" Watermark="http://127.0.0.1:11434/v1" />
+                <TextBlock Text="Model" VerticalAlignment="Center" />
+                <TextBox Width="150" Text="{Binding AiModel}" Watermark="llama3.2" />
+              </StackPanel>
+
+              <TextBlock Text="Only these existing metadata fields are sent:" Opacity="0.85" />
+              <StackPanel Orientation="Horizontal" Spacing="14">
+                <CheckBox Content="Artist" IsChecked="{Binding AiShareArtist}" />
+                <CheckBox Content="Album" IsChecked="{Binding AiShareAlbum}" />
+                <CheckBox Content="Album Artist" IsChecked="{Binding AiShareAlbumArtist}" />
+              </StackPanel>
+
+              <TextBlock Text="Suggest missing fields:" Opacity="0.85" />
+              <StackPanel Orientation="Horizontal" Spacing="14">
+                <CheckBox Content="Title" IsChecked="{Binding AiSuggestTitle}" />
+                <CheckBox Content="Album" IsChecked="{Binding AiSuggestAlbum}" />
+                <CheckBox Content="Genre" IsChecked="{Binding AiSuggestGenre}" />
+              </StackPanel>
+
+              <TextBox Text="{Binding AiProposalText}"
+                       IsReadOnly="True"
+                       AcceptsReturn="True"
+                       TextWrapping="Wrap"
+                       MinHeight="90" />
+            </StackPanel>
+
+            <Separator Margin="0,4,0,4" />
             <TextBlock Text="Rename from tags" FontWeight="SemiBold" />
             <TextBlock Text="Template tokens: artist, album, albumartist, title, track:00, disc, year, genre" Opacity="0.85" TextWrapping="Wrap" />
             <TextBox Text="{Binding RenameTemplate}" Watermark="Example: 01 - Song Title" />
