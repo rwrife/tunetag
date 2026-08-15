@@ -20,9 +20,14 @@ public partial class App : Application
         {
             var tagService = TuneTagCore.CreateDefaultTagService();
             var trackLibraryService = new TrackLibraryService(tagService, tagService);
+            var viewModel = new MainWindowViewModel(trackLibraryService, tagService)
+            {
+                TagAiService = new TuneTag.Core.Services.LocalOpenAiTagAiService()
+            };
+
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(trackLibraryService, tagService)
+                DataContext = viewModel
             };
         }
 

@@ -143,6 +143,77 @@ public sealed class MainWindowViewModelTests
         Assert.Empty(service.CapturedSaveRequests);
     }
 
+    [Fact]
+    public async Task ProbeAiServiceAsync_WhenLocalModelUnavailable_DisablesSuggestionsWithClearMessage()
+    {
+        var service = new FakeTrackLibraryService();
+        var fakeAi = new FakeTagAiService
+        {
+            ProbeResult = new TagAiProbeResult(false, "Could not reach local model endpoint: connection refused")
+        };
+
+        var vm = new MainWindowViewModel(service, new FakeArtService())
+        {
+            TagAiService = fakeAi,
+            AiAssistEnabled = true
+        };
+
+        var reachable = await vm.ProbeAiServiceAsync();
+
+        Assert.False(reachable);
+        Assert.False(vm.CanRequestAiSuggestions);
+        Assert.Contains("could not reach local model endpoint", vm.AiAssistStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GenerateAiSuggestions_DoesNotWriteUntilApplyIsExplicitlyCalled()
+    {
+        var service = new FakeTrackLibraryService
+        {
+            NextLoadResult = new TrackLoadResult(
+            [
+                new LoadedTrack("/music/one.mp3", new TrackTags { Artist = "Daft Punk" })
+            ],
+            [])
+        };
+
+        var fakeAi = new FakeTagAiService
+        {
+            ProbeResult = new TagAiProbeResult(true, "reachable"),
+            Suggestions =
+            [
+                new TagAiSuggestion(
+                    "/music/one.mp3",
+                    new TrackTags { Title = "One More Time", Genre = "French House" },
+                    "well-known track")
+            ]
+        };
+
+        var vm = new MainWindowViewModel(service, new FakeArtService())
+        {
+            TagAiService = fakeAi,
+            AiAssistEnabled = true
+        };
+
+        await vm.LoadFolderAsync("/music");
+        vm.SetSelectedTracks(vm.Tracks);
+
+        var suggested = await vm.GenerateAiSuggestionsAsync();
+
+        Assert.Equal(1, suggested);
+        Assert.True(vm.HasPendingAiSuggestions);
+        Assert.Null(vm.Tracks[0].Title);
+        Assert.Null(vm.Tracks[0].Genre);
+        Assert.False(vm.Tracks[0].IsDirty);
+
+        var applied = vm.ApplyAiSuggestions();
+
+        Assert.Equal(1, applied);
+        Assert.Equal("One More Time", vm.Tracks[0].Title);
+        Assert.Equal("French House", vm.Tracks[0].Genre);
+        Assert.True(vm.Tracks[0].IsDirty);
+    }
+
     private sealed class FakeTrackLibraryService : ITrackLibraryService
     {
         public TrackLoadResult NextLoadResult { get; set; } = new([], []);
@@ -189,6 +260,26 @@ public sealed class MainWindowViewModelTests
         public int ApplyPrimaryToFolder(string folderPath, AlbumArt art, IEnumerable<string>? supportedExtensions = null)
         {
             return 0;
+        }
+    }
+
+    private sealed class FakeTagAiService : ITagAiService
+    {
+        public TagAiProbeResult ProbeResult { get; set; } = new(true, "reachable");
+
+        public IReadOnlyList<TagAiSuggestion> Suggestions { get; set; } = [];
+
+        public Task<TagAiProbeResult> ProbeAsync(TagAiRequestOptions options, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(ProbeResult);
+        }
+
+        public Task<IReadOnlyList<TagAiSuggestion>> SuggestMissingTagsAsync(
+            IReadOnlyList<TagAiTrackInput> tracks,
+            TagAiRequestOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Suggestions);
         }
     }
 }
