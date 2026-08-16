@@ -98,7 +98,7 @@ $manifestPath = Join-Path $msixStage "AppxManifest.xml"
     <DisplayName>TuneTag</DisplayName>
     <PublisherDisplayName>rwrife</PublisherDisplayName>
     <Description>TuneTag desktop music tag editor</Description>
-    <Logo>Assets\\StoreLogo.png</Logo>
+    <Logo>Assets/StoreLogo.png</Logo>
   </Properties>
   <Resources>
     <Resource Language="en-us" />
@@ -112,8 +112,8 @@ $manifestPath = Join-Path $msixStage "AppxManifest.xml"
         DisplayName="TuneTag"
         Description="TuneTag desktop music tag editor"
         BackgroundColor="transparent"
-        Square150x150Logo="Assets\\Square150x150Logo.png"
-        Square44x44Logo="Assets\\Square44x44Logo.png" />
+        Square150x150Logo="Assets/Square150x150Logo.png"
+        Square44x44Logo="Assets/Square44x44Logo.png" />
     </Application>
   </Applications>
   <Capabilities>
