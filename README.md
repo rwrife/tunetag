@@ -40,12 +40,12 @@ and treats an optional local LLM as a convenience — never a requirement.
 ## How to use
 
 ### Windows 10/11 quickstart
-1. Download the latest `tunetag-win-x64.zip` from Releases (or build from source).
-2. Unzip and run `tunetag.exe` (portable, no install). MSIX package also planned.
+1. Download the latest `tunetag-win-x64-portable.zip` from Releases (or build from source).
+2. Unzip and run `tunetag.exe` (portable, no install), or install `tunetag-win-x64.msix`.
 3. **File → Open Folder…** to load your music, edit in the grid, then **Save**.
 
 ### macOS quickstart
-1. Download `tunetag-macos.dmg` from Releases (or build from source).
+1. Download either `tunetag-macos-x64.dmg` (Intel) or `tunetag-macos-arm64.dmg` (Apple Silicon) from Releases.
 2. Drag **tunetag.app** to Applications and launch (unsigned builds: right-click → Open).
 3. **File → Open Folder…**, edit, **Save**.
 

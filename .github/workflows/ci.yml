@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore TuneTag.sln
+
+      - name: Build
+        run: dotnet build TuneTag.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test TuneTag.sln --configuration Release --no-build --verbosity minimal
+
+      - name: Package Windows zip + MSIX
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/ci/package-windows.ps1 -Version "${{ github.ref_name }}" -ArtifactDir "artifacts/windows"
+
+      - name: Package macOS x64 .dmg
+        if: runner.os == 'macOS'
+        run: ./scripts/ci/package-macos.sh osx-x64 "${{ github.ref_name }}" artifacts/macos
+
+      - name: Package macOS arm64 .dmg
+        if: runner.os == 'macOS'
+        run: ./scripts/ci/package-macos.sh osx-arm64 "${{ github.ref_name }}" artifacts/macos
+
+      - name: Upload Windows artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunetag-win-artifacts
+          path: |
+            artifacts/windows/tunetag-win-x64-portable.zip
+            artifacts/windows/tunetag-win-x64.msix
+
+      - name: Upload macOS artifacts
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunetag-macos-artifacts
+          path: |
+            artifacts/macos/tunetag-macos-x64.dmg
+            artifacts/macos/tunetag-macos-arm64.dmg
