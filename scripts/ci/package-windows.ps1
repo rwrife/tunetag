@@ -23,14 +23,12 @@ function Get-MsixVersion {
         return "0.1.0.0"
     }
 
-    $parts = @(
-        [int]$match.Groups[1].Value,
-        [int]$match.Groups[2].Value,
-        [int]$match.Groups[3].Value,
-        if ($match.Groups[4].Success) { [int]$match.Groups[4].Value } else { 0 }
-    )
+    $revision = 0
+    if ($match.Groups[4].Success) {
+        $revision = [int]$match.Groups[4].Value
+    }
 
-    return "{0}.{1}.{2}.{3}" -f $parts[0], $parts[1], $parts[2], $parts[3]
+    return "{0}.{1}.{2}.{3}" -f ([int]$match.Groups[1].Value), ([int]$match.Groups[2].Value), ([int]$match.Groups[3].Value), $revision
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
